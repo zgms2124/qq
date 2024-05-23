@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="wdzltools">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/wdzltools.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
