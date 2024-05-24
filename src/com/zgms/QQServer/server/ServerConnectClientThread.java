@@ -128,7 +128,7 @@ public class ServerConnectClientThread extends Thread {
                                         groupMessage.setMesType(MessageType.MESSAGE_GROUP_MES); // 组消息类型
                                         groupMessage.setSender(userId); // 发送者ID
                                         groupMessage.setContent(messageContent); // 真实消息内容
-                                        groupMessage.setGetter(memberId); // 接收者ID，重要用于客户端逻辑处理
+                                        groupMessage.setGetter(groupId); // 接收者ID，重要用于客户端逻辑处理
                                         groupMessage.setSendTime(new Date().toString()); // 发送时间
 
                                         // 发送消息

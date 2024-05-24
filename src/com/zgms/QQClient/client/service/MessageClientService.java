@@ -75,7 +75,7 @@ public class MessageClientService {
      * @param userId   发送用户ID
      * @param groupId  组ID
      */
-    public void sendGroupMessage(String content, String userId, String groupId) {
+    public void sendGroupMessage(String groupId, String userId, String content) {
         // 将组ID和消息内容合并为一个字符串，格式为 "groupId:messageContent"
         String groupMessageContent = groupId + ":" + content;
 
