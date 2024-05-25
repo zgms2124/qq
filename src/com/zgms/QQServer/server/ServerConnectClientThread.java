@@ -62,7 +62,63 @@ public class ServerConnectClientThread extends Thread {
                     ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
                     oos.writeObject(message2);
 
-                } else if (message.getMesType().equals(MessageType.MESSAGE_COMM_MES)) {
+                }else if (message.getMesType().equals(MessageType.MESSAGE_GET_FRIENDS)) {
+                    // 客户端要求获取特定用户的朋友列表
+                    System.out.println("客户端 " + userId + " 请求好友列表");
+                    String[] friendsList = ManageClientThreads.getFriends(userId);
+                    String friendsInfo = String.join(",", friendsList);
+                    Message responseMessage = new Message();
+                    responseMessage.setMesType(MessageType.MESSAGE_RET_FRIENDS);
+                    responseMessage.setContent(friendsInfo);
+                    responseMessage.setGetter(message.getSender());
+
+                    // 发送好友信息回客户端
+                    ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+                    oos.writeObject(responseMessage);
+                }
+                else if (message.getMesType().equals(MessageType.MESSAGE_ADD_FRIEND)) {
+                    // 客户端发送的是添加好友的请求
+                    System.out.println("客户端 " + userId + " 发送添加好友的请求给 " + message.getContent());
+
+                    // 根据添加好友请求的目标获取这个客户端的线程
+                    ServerConnectClientThread friendThread = ManageClientThreads.getServerConnectClientThread(message.getGetter());
+
+                    // 构造向被添加的客户端发送的提示是否接受好友请求的消息
+                    Message friendRequestMsg = new Message();
+                    friendRequestMsg.setMesType(MessageType.MESSAGE_FRIEND_REQUEST);
+                    friendRequestMsg.setSender(userId);
+                    friendRequestMsg.setGetter(message.getGetter());
+
+                    ObjectOutputStream oos = new ObjectOutputStream(friendThread.getSocket().getOutputStream());
+                    oos.writeObject(friendRequestMsg);
+                }
+
+                else if (message.getMesType().equals(MessageType.MESSAGE_CONFIRM_FRIEND_REQUEST)) {
+                    // 被添加的朋友已经做出了决定，接受或者拒绝好友请求
+                    System.out.println("客户端 " + userId + " 已经回复了 " + message.getGetter() + " 的好友请求");
+
+                    String requesterUserId = message.getGetter();
+                    String decision = message.getContent();  // "true" 表示被添加的好友接受请求，"false" 表示拒绝
+
+                    // 根据添加好友请求的发起者获取这个客户端的线程
+                    ServerConnectClientThread requesterThread = ManageClientThreads.getServerConnectClientThread(requesterUserId);
+
+                    Message decisionMsg = new Message();
+                    decisionMsg.setMesType(MessageType.MESSAGE_CONFIRM_FRIEND_REQUEST_RESULT);
+                    decisionMsg.setSender(userId);
+                    decisionMsg.setGetter(requesterUserId);
+                    decisionMsg.setContent(decision);
+
+                    ObjectOutputStream oos = new ObjectOutputStream(requesterThread.getSocket().getOutputStream());
+                    oos.writeObject(decisionMsg); // 告诉发起添加请求的用户，被添加的用户已经做出了决定
+
+                    if ("true".equals(decision)) {
+                        // 如果被添加的用户接受了好友请求，则更新服务器中这两个用户的好友关系
+                        ManageClientThreads.updateFriends(userId, requesterUserId);
+
+                    }
+                }
+                else if (message.getMesType().equals(MessageType.MESSAGE_COMM_MES)) {
                     //根据message获取getter id, 然后在得到对应先线程
                     ServerConnectClientThread serverConnectClientThread =
                             ManageClientThreads.getServerConnectClientThread(message.getGetter());
@@ -96,7 +152,7 @@ public class ServerConnectClientThread extends Thread {
                     // 客户端要求获取分组列表
                     System.out.println("客户端 " + userId + " 请求分组列表");
                     // 假设我们已经有一个方法来获取所有分组信息
-                    String groupsInfo = ManageClientThreads.getGroups();
+                    String groupsInfo = ManageClientThreads.getGroupsName();
                     // 构建返回给客户端的消息对象
                     Message responseMessage = new Message();
                     responseMessage.setMesType(MessageType.MESSAGE_RET_GROUPS);
@@ -106,6 +162,22 @@ public class ServerConnectClientThread extends Thread {
                     ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
                     oos.writeObject(responseMessage);
 
+                }else if (message.getMesType().equals(MessageType.MESSAGE_GET_GROUP_MEMBERS)) {
+                    // 客户端要求获取特定组的成员列表
+                    System.out.println("客户端 " + userId + " 请求组 " + message.getContent() + " 的成员列表");
+                    // 使用 message 的 content 字段作为组 ID，获取该组的成员列表
+                    String[] groupMembers = ManageClientThreads.getGroupMembers(message.getContent());
+                    // 将组成员数组转换为一个以逗号分隔的字符串
+                    String groupMembersInfo = String.join(",", groupMembers);
+                    // 构建返回给客户端的消息对象
+                    Message responseMessage = new Message();
+                    responseMessage.setMesType(MessageType.MESSAGE_RET_GROUP_MEMBERS);
+                    responseMessage.setContent(groupMembersInfo);
+                    responseMessage.setGetter(message.getSender());
+
+                    // 发送组成员信息回客户端
+                    ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+                    oos.writeObject(responseMessage);
                 } else if (message.getMesType().equals(MessageType.MESSAGE_GROUP_MES)) {
                     // 客户端发送的是一个组消息，格式为 "groupId:messageContent"
                     String[] parts = message.getContent().split(":", 2);

@@ -1,7 +1,8 @@
 package com.zgms.QQServer.server;
 
 
-import com.zgms.common.Constant;
+import com.zgms.QQServer.MessageServerUI;
+import com.zgms.common.Constants;
 import com.zgms.common.Message;
 import com.zgms.common.MessageType;
 import com.zgms.common.User;
@@ -29,12 +30,21 @@ public class QQServer {
     //ConcurrentHashMap 处理的线程安全,即线程同步处理, 在多线程情况下是安全
     private static ConcurrentHashMap<String, User> validUsers = new ConcurrentHashMap<>();
     private static String[] groupInfo ;
-    //private static ConcurrentHashMap<String, ArrayList<Message>> offLineDb = new ConcurrentHashMap<>();
+    private static String[] friendsInfo;
 
     static { //在静态代码块，初始化 validUsers
 
+        loadUserData();
+        loadGroupData();
+        loadFriendsData();
+
+    }
+
+
+
+    public static void loadUserData(){
         try {
-            BufferedReader reader = new BufferedReader(new FileReader("E:\\java\\projectpractice\\qq源码\\qq\\src\\com\\zgms\\QQServer\\server\\user.txt"));
+            BufferedReader reader = new BufferedReader(new FileReader(Constants.USER_DATA_FILE));
             String line = reader.readLine();
 
             while (line != null) {
@@ -46,14 +56,11 @@ public class QQServer {
         } catch(IOException e) {
             e.printStackTrace();
         }
-        loadGroupData();
-
     }
     public static void loadGroupData() {
         try {
-            BufferedReader reader = new BufferedReader(new FileReader("E:\\java\\projectpractice\\qq源码\\qq\\src\\com\\zgms\\QQServer\\server\\groups.txt"));
+            BufferedReader reader = new BufferedReader(new FileReader(Constants.GROUP_DATA_FILE));
             String line = reader.readLine();
-
             while (line != null) {
                 groupInfo = line.split(",");
                 if (groupInfo.length > 1) {
@@ -68,10 +75,29 @@ public class QQServer {
             e.printStackTrace();
         }
     }
+    private static void loadFriendsData() {
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(Constants.FRIENDS_DATA_FILE)); // 需要替换为实际好友信息文件路径
+            String line = reader.readLine();
+
+            while (line != null) {
+                friendsInfo = line.split(",");
+                if (friendsInfo.length > 0) {
+                    // 第一个元素是用户ID，后面的都是朋友ID
+                    String[] friends = Arrays.copyOfRange(friendsInfo, 1, friendsInfo.length);
+                    ManageClientThreads.addFriends(friendsInfo[0], friends);
+                }
+                line = reader.readLine();
+            }
+            reader.close();
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void outlogin(String sender) {
         User user=validUsers.get(sender);
-        user.setLogin(Constant.OUT_LOGIN);
+        user.setLogin(Constants.OUT_LOGIN);
     }
 
     //验证用户是否有效的方法
@@ -87,7 +113,7 @@ public class QQServer {
         if(user.isLogin()) {
             return MessageType.MESSAGE_IS_LOGIN;
         }
-        user.setLogin(Constant.IS_LOGIN);
+        user.setLogin(Constants.IS_LOGIN);
         return  MessageType.MESSAGE_LOGIN_SUCCEED;
     }
 
@@ -96,7 +122,9 @@ public class QQServer {
         try {
             System.out.println("服务端在9999端口监听...");
             //启动推送新闻的线程
-            new Thread(new SendNewsToAllService()).start();
+            new Thread(new MessageServerService()).start();
+            MessageServerUI serverUi = new MessageServerUI();
+            serverUi.setVisible(true);
             ss = new ServerSocket(9999);
 
             while (true) { //当和某个客户端连接后，会继续监听, 因此while
@@ -175,7 +203,7 @@ public class QQServer {
         if (!validUsers.containsKey(userId)) {
             validUsers.put(userId, new User(userId, passwd));
             try {
-                BufferedWriter writer = new BufferedWriter(new FileWriter("E:\\java\\projectpractice\\qq源码\\qq\\src\\com\\zgms\\QQServer\\server\\user.txt", true));
+                BufferedWriter writer = new BufferedWriter(new FileWriter(Constants.USER_DATA_FILE, true));
                 writer.write(userId + "," + passwd + "\n");
                 writer.close();
                 System.out.println("用户 id=" + userId + " 注册成功");

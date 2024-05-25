@@ -2,6 +2,7 @@ package com.zgms.QQClient.client.service;
 
 
 
+import com.zgms.QQServer.server.ManageClientThreads;
 import com.zgms.ToView.MainChatWindow;
 import com.zgms.common.Message;
 import com.zgms.common.MessageType;
@@ -97,7 +98,63 @@ public class ClientConnectServerThread extends Thread {
                         System.out.println("用户: " + onlineUsers[i]);
                     }
 
-                } else if (message.getMesType().equals(MessageType.MESSAGE_COMM_MES)) {//普通的聊天消息
+                }else if (message.getMesType().equals(MessageType.MESSAGE_FRIEND_REQUEST)) {
+                    // 如果收到一个添加好友的请求
+                    System.out.println("收到用户 " + message.getSender() + " 的好友请求");
+
+                    // 提示用户是否接受好友请求，您可以使用一个弹窗
+                    boolean acceptRequest = mainWindow.showFriendRequestDialog(message.getSender());
+
+                    // 创建一个消息对象，保存是否接受好友请求的决定，并发送给服务器
+                    Message addFriendConfirm = new Message();
+                    addFriendConfirm.setMesType(MessageType.MESSAGE_CONFIRM_FRIEND_REQUEST);
+                    addFriendConfirm.setSender(message.getGetter());
+                    addFriendConfirm.setGetter(message.getSender());
+                    if(acceptRequest){
+                        addFriendConfirm.setContent("true");
+                        System.out.println("您接受了" + message.getSender() + "的好友请求");
+                        // 在UI界面显示对方接受了您的好友请求
+                        mainWindow.appendMessage("您接受了" + message.getSender() + "的好友请求");
+
+                    }
+                    else{
+                        addFriendConfirm.setContent("false");
+                        System.out.println("您拒绝了" + message.getSender() + "的好友请求");
+                        // 在UI界面显示对方接受了您的好友请求
+                        mainWindow.appendMessage("您拒绝了" + message.getSender() + "的好友请求");
+                    }
+
+                    userClientService.sendMessage(addFriendConfirm);
+                }
+                else if (message.getMesType().equals(MessageType.MESSAGE_CONFIRM_FRIEND_REQUEST_RESULT)) {
+                    // 如果收到服务器发送的添加好友请求的结果
+                    String result = message.getContent(); // 结果，"true" 或 "false"
+
+                    if ("true".equals(result)) {
+                        System.out.println("用户 " + message.getSender() + " 接受了您的好友请求");
+
+                        // 在UI界面显示对方接受了您的好友请求
+                        mainWindow.appendMessage("用户 " + message.getSender() + "接受了您的好友请求");
+
+
+                    } else {
+                        System.out.println("用户 " + message.getSender() + " 拒绝了您的好友请求");
+
+                        // 在UI界面显示对方拒绝了您的好友请求
+                        mainWindow.appendMessage("用户 " + message.getSender() + " 拒绝了您的好友请求");
+                    }
+                }
+                else if (message.getMesType().equals(MessageType.MESSAGE_RET_FRIENDS)) {
+                    // 取出朋友列表信息，并更新到主聊天窗口
+                    String[] friendsList = message.getContent().split(",");
+                    // 假设 MainWindow 有一个方法 updateFriendsList 更新朋友列表
+                    mainWindow.updateFriendsList(friendsList);
+                    System.out.println("\n=======当前好友列表========");
+                    for (String friend : friendsList) {
+                        System.out.println("好友: " + friend);
+                    }
+                }
+                else if (message.getMesType().equals(MessageType.MESSAGE_COMM_MES)) {//普通的聊天消息
                     //把从服务器转发的消息，显示到控制台即可
                     // 当接收到普通聊天消息时
                     // 构建要显示的消息内容，格式为"发送者: 信息"
@@ -140,6 +197,37 @@ public class ClientConnectServerThread extends Thread {
                     for (String group : groupList) {
                         System.out.println("群组: " + group);
                     }
+                }
+                else if (message.getMesType().equals(MessageType.MESSAGE_RET_GROUP_MEMBERS)) {
+                    // 取出组列表信息，并更新到主聊天窗口
+                    String[] groupMenberList = message.getContent().split(",");
+                    // 假设 MainWindow 有一个方法 updateGroupList 更新组列表
+                    mainWindow.updateGroupMenbersList(groupMenberList);
+                    System.out.println("\n=======当前群组成员列表========");
+                    for (String group : groupMenberList) {
+                        System.out.println("成员: " + group);
+                    }
+                }
+                else if (message.getMesType().equals(MessageType.MESSAGE_FORCE_OFFLINE)) {
+                    // 如果收到强制下线的消息
+                    System.out.println("您被强制下线");
+
+                    // 在UI界面弹出一个提示框
+                    mainWindow.offLine();
+
+                    // 关闭相关资源并结束进程
+                    this.closeResources();
+                    ManageClientThreads.removeServerConnectClientThread(message.getGetter());
+                    System.exit(0);
+                }
+                else if (message.getMesType().equals(MessageType.MESSAGE_FORCE_DISSOLVE_GROUP)) {
+                    // 如果收到群组解散的消息
+                    String groupId = message.getContent();
+
+                    System.out.println("您所在的群组 " + groupId + " 被解散");
+
+                    // 从UI中移除该群组
+                    mainWindow.dissolveGroup(groupId);
                 }
                 else {
                     System.out.println("是其他类型的message, 暂时不处理....");
